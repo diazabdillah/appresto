@@ -36,4 +36,8 @@ class User extends Authenticatable
     {
         return $this->hasMany(Order::class);
     }
+    public function testimonies()
+{
+    return $this->hasMany(Testimony::class);
+}
 }

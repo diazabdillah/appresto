@@ -18,7 +18,7 @@
     </main>
 
     @include('partials.footer')
-
+@yield('scripts')
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://rawgit.com/schmich/instascan-builds/master/instascan.min.js"></script>
 </body>

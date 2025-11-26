@@ -25,6 +25,12 @@ Route::post('/add-to-cart', [CustomerController::class, 'addToCart'])->name('cus
 Route::put('/update-cart', [CustomerController::class, 'updateCart'])->name('customer.cart.update');
 Route::get('/remove-cart/{productId}', [CustomerController::class, 'removeCartItem'])->name('customer.cart.remove');
 Route::put('/update-cart', [CustomerController::class, 'updateCart'])->name('customer.cart.update');
+Route::get('/customer/category/{category}', [CustomerController::class, 'showCategoryDetail'])
+    ->name('customer.category.show');
+Route::post('/ajax/cart/update-qty/{id}', [CustomerController::class, 'updateCartQtyAjax'])->name('customer.cart.update.ajax');
+Route::delete('/cart/remove-item/{id}', 'App\Http\Controllers\CustomerController@removeCartItem');
+Route::get('/product/{product}', [CustomerController::class, 'showProductDetail'])
+    ->name('customer.product.show');
 // Checkout & Pembayaran Dine-in (Tanpa Login)
 // Route ini memicu Order Creation, khusus untuk Dine-in
 Route::post('/checkout-dinein', [CustomerController::class, 'createOrderDineIn'])->name('customer.order.create.dinein');

@@ -5,7 +5,7 @@
                 <h5 class="modal-title" id="checkoutModalLabel"><i class="bi bi-wallet2 me-2"></i> Konfirmasi Pembayaran</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+           <div class="modal-body">
                 
                 {{-- 💰 RINGKASAN PESANAN (BARU) 💰 --}}
                 @php
@@ -25,97 +25,166 @@
                         <span class="text-danger">Rp {{ number_format($modalTotal) }}</span>
                     </div>
                 </div>
-                
-                {{-- 📍 Skenario 1: DINE-IN (Selalu diprioritaskan jika ada ID Meja) --}}
-                @if(session('table_id'))
-                    <h6 class="text-center mb-4 text-success">
-                        Pesanan Meja No. {{ session('table_id') }}
-                        <br><small class="text-muted">Masukkan detail kontak untuk kemudahan staf dan notifikasi.</small>
-                    </h6>
-                    
-                    <form action="{{ route('customer.order.create.dinein') }}" method="POST">
+                {{-- ⭐ PERIKSA AKSES: HARUS LOGIN ATAU PUNYA ID MEJA ⭐ --}}
+                @if (Auth::check() || session('table_id'))
+
+                    <form id="mainCheckoutForm" action="" method="POST">
                         @csrf
+
+                        {{-- 1. PILIHAN MEJA & TIPE PESANAN --}}
+                        <div class="mb-3">
+                            <label class="form-label">Tipe Pesanan:</label>
+                            <select name="order_type" class="form-select" id="orderTypeSelect" required>
+                                <option value="">-- Pilih Tipe Pesanan --</option>
+                                
+                                {{-- Opsi DINE-IN (Scan QR) --}}
+                                @if(session('table_id'))
+                                    <option value="dine_in_scanned" selected>Dine-In (Meja {{ session('table_id') }} - SCAN)</option>
+                                @endif
+                                
+                                {{-- Opsi DINE-IN (Dropdown Manual - Hanya muncul jika TIDAK ADA scan ID) --}}
+                                @if(!session('table_id') && Auth::check() && $availableTables->count())
+                                    <option value="dine_in_manual">Dine-In (Pilih Meja)</option>
+                                @endif
+                                
+                                {{-- Opsi Takeaway/Delivery (Hanya jika Login) --}}
+                                @auth
+                                    <option value="takeaway">Takeaway (Ambil di Restoran)</option>
+                                    <option value="delivery">Delivery (Diantar ke Alamat)</option>
+                                @endauth
+                            </select>
+                        </div>
                         
-                        {{-- Input Kontak Dine-in --}}
+                        {{-- 2. DROPDOWN MEJA TERSEDIA (Kondisional untuk Staff Manual Order) --}}
+                        <div class="mb-3" id="tableSelectField" style="display:none;">
+                            <label for="manualTableId" class="form-label">Pilih Meja Tersedia:</label>
+                            <select name="table_id_manual" class="form-select" id="manualTableId">
+                                <option value="">-- Pilih Meja --</option>
+                                @foreach($availableTables as $table)
+                                    <option value="{{ $table->id }}">Meja {{ $table->table_number }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        {{-- Input Hidden untuk Meja yang di-Scan --}}
+                        @if(session('table_id'))
+                            <input type="hidden" name="table_id_scanned" value="{{ session('table_id') }}">
+                        @endif
+                        
+                        {{-- 3. INPUT KONTAK --}}
                         <div class="mb-3">
                             <label for="customer_name" class="form-label">Nama Anda (Wajib)</label>
                             <input type="text" name="customer_name" id="customer_name" class="form-control" required placeholder="Nama pemesan">
                         </div>
-                        <div class="mb-3">
-                            <label for="customer_email" class="form-label">Email </label>
-                            <input type="email" name="customer_email" id="customer_email" class="form-control" placeholder="Email untuk tanda terima / kontak">
+            <div class="mb-3">
+
+<label for="customer_email" class="form-label">Email (Opsional)</label>
+
+<input type="email" name="customer_email" id="customer_email" class="form-control" placeholder="Email untuk tanda terima">
+
+</div>
+
+<div class="mb-3">
+
+<label for="customer_hp" class="form-label">Nomor HP (Wajib)</label>
+
+<input type="text" name="customer_hp" id="customer_hp" class="form-control" required placeholder="Nomor HP aktif">
+
+</div>
+                        
+                        {{-- 4. INPUT ALAMAT (Kondisional untuk Delivery) --}}
+                        <div class="mb-3" id="deliveryAddressField" style="display:none;">
+                            <label for="deliveryAddress" class="form-label">Alamat Pengiriman (Wajib untuk Delivery):</label>
+                            <textarea name="delivery_address" id="deliveryAddress" class="form-control" rows="3"></textarea>
                         </div>
-                          <div class="mb-3">
-                            <label for="customer_email" class="form-label">Nomer HP</label>
-                            <input type="text" name="customer_hp" id="customer_hp" class="form-control" placeholder="Email untuk tanda terima / kontak">
-                        </div>
+
                         <hr>
                         
-                        <button type="submit" class="btn btn-success w-100 mt-2">
-                            <i class="bi bi-credit-card-fill me-2"></i> Lanjutkan Pembayaran Midtrans
+                        <button type="submit" id="submitCheckout" class="btn btn-primary w-100 mt-2">
+                            <i class="bi bi-credit-card-fill me-2"></i> Lanjutkan Pembayaran
                         </button>
                     </form>
-                    
-                @else
-                    {{-- Skenario 2: DELIVERY/TAKEAWAY & TANPA MEJA --}}
-                    
-                    @auth
-                        {{-- Opsi DELIVERY/TAKEAWAY (User Login) --}}
-                        <h6 class="mt-3 text-warning"><i class="bi bi-geo-alt-fill"></i> Selesaikan Pesanan Delivery / Takeaway:</h6>
-                        <form action="{{ route('app.order.create.auth') }}" method="POST">
-                            @csrf
-                            <p class="text-muted small">Anda login sebagai **{{ Auth::user()->name }}**.</p>
-                            
-                            {{-- Input Tipe Pesanan dan Alamat --}}
-                            <div class="mb-3">
-                                <label class="form-label">Tipe Pesanan:</label>
-                                <select name="order_type" class="form-select" id="orderTypeSelect" required>
-                                    <option value="takeaway">Takeaway (Ambil di Restoran)</option>
-                                    <option value="delivery">Delivery (Diantar ke Alamat)</option>
-                                </select>
-                            </div>
-                            
-                            <div class="mb-3" id="deliveryAddressField" style="display:none;">
-                                <label for="deliveryAddress" class="form-label">Alamat Pengiriman:</label>
-                                <textarea name="delivery_address" id="deliveryAddress" class="form-control" rows="3"></textarea>
-                            </div>
 
-                            <button type="submit" class="btn btn-primary w-100 mt-2">
-                                Lanjutkan Pembayaran Akun
-                            </button>
-                        </form>
-                    @else
-                        {{-- ERROR / TIDAK ADA MEJA & TIDAK LOGIN --}}
-                        <div class="alert alert-danger text-center">
-                             <i class="bi bi-x-octagon-fill"></i> Keranjang tidak terasosiasi ke Meja.
-                             <br>Silakan <a href="{{ route('login') }}" class="alert-link">Login</a> untuk Delivery/Takeaway.
-                        </div>
-                    @endauth
+                @else
+                    {{-- JIKA TIDAK ADA AKSES --}}
+                    <div class="alert alert-danger text-center">
+                        <i class="bi bi-person-fill-lock"></i> **Akses Dibatasi.**
+                        <br>Silakan <a href="{{ route('login') }}" class="alert-link">Login</a> atau Scan QR Meja.
+                    </div>
                 @endif
                 
-            </div>
+           
+            {{-- Footer Error/Login (Sama seperti sebelumnya) --}}
         </div>
     </div>
 </div>
 
 <script>
-// Logic JavaScript (Sama seperti sebelumnya)
 document.addEventListener('DOMContentLoaded', function () {
+    const mainForm = document.getElementById('mainCheckoutForm');
     const orderTypeSelect = document.getElementById('orderTypeSelect');
     const deliveryAddressField = document.getElementById('deliveryAddressField');
+    const deliveryAddressTextarea = document.getElementById('deliveryAddress');
+    const tableSelectField = document.getElementById('tableSelectField'); // Field baru
+    const manualTableId = document.getElementById('manualTableId');      // Select meja baru
+    const submitButton = document.getElementById('submitCheckout');
 
-    if (orderTypeSelect) {
-        function toggleDeliveryField() {
-             if (orderTypeSelect.value === 'delivery') {
-                deliveryAddressField.style.display = 'block';
-                deliveryAddressField.querySelector('textarea').setAttribute('required', 'required');
+    const dineInRoute = '{{ session("table_id") ? route("customer.order.create.dinein") : "" }}'; // Route untuk Scanned ID
+    const authRoute = '{{ Auth::check() ? route("app.order.create.auth") : "" }}'; // Route untuk Manual/Delivery/Takeaway
+
+    function updateFormLogic() {
+        if (!orderTypeSelect) { // Jika hanya ada mode Dine-in (Scanned)
+             mainForm.action = dineInRoute;
+             submitButton.removeAttribute('disabled');
+             return;
+        }
+        
+        const selectedType = orderTypeSelect.value;
+
+        // Reset state
+        deliveryAddressField.style.display = 'none';
+        deliveryAddressTextarea.removeAttribute('required');
+        tableSelectField.style.display = 'none';
+        manualTableId.removeAttribute('required');
+        mainForm.action = ''; // Reset action
+        submitButton.setAttribute('disabled', 'disabled');
+
+        // 1. Logika Pengaturan Form
+        if (selectedType === 'dine_in_manual') {
+            mainForm.action = authRoute;
+            tableSelectField.style.display = 'block';
+            manualTableId.setAttribute('required', 'required'); // Wajib pilih meja
+            
+        } else if (selectedType === 'dine_in_scanned') {
+            mainForm.action = dineInRoute;
+            
+        } else if (selectedType === 'delivery') {
+            mainForm.action = authRoute;
+            deliveryAddressField.style.display = 'block';
+            deliveryAddressTextarea.setAttribute('required', 'required');
+            
+        } else if (selectedType === 'takeaway') {
+            mainForm.action = authRoute;
+        }
+
+        // 2. VALIDASI AKHIR
+        if (mainForm.action) {
+            // Validasi tambahan untuk Dine-In Manual (harus pilih meja)
+            if (selectedType === 'dine_in_manual' && !manualTableId.value) {
+                submitButton.setAttribute('disabled', 'disabled');
             } else {
-                deliveryAddressField.style.display = 'none';
-                deliveryAddressField.querySelector('textarea').removeAttribute('required');
+                submitButton.removeAttribute('disabled');
             }
         }
-        orderTypeSelect.addEventListener('change', toggleDeliveryField);
-        toggleDeliveryField();
+    }
+
+    if (orderTypeSelect) {
+        orderTypeSelect.addEventListener('change', updateFormLogic);
+        updateFormLogic();
+    }
+    
+    if (manualTableId) {
+        manualTableId.addEventListener('change', updateFormLogic);
     }
 });
 </script>

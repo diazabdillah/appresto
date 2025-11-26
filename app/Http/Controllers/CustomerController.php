@@ -51,47 +51,85 @@ class CustomerController extends Controller
     ));
 }
 public function showMenu(Table $table)
-    {
-        // 1. Setup Session
-        session(['table_id' => $table->id]); 
-        
-        // 2. Query Data Menu
-        $categories = Category::with(['products' => function($query) {
-             // Pastikan produk diurutkan dan hanya yang memiliki stok > 0
-             $query->where('stock', '>', 0)->orderBy('name', 'asc');
-        }])->get();
-        
-        // Produk Flash Sale
-        $flashSaleProducts = Product::where('is_flash_sale', true)
-                                    ->where('flash_sale_end_at', '>', Carbon::now())
-                                    ->where('stock', '>', 0)
-                                    ->take(8)
-                                    ->get();
+{
+    // 1. Setup Session
+    session(['table_id' => $table->id]); 
+    
+    // 2. Query Data Menu
+    $categories = Category::with(['products' => function($query) {
+         // Pastikan produk diurutkan dan hanya yang memiliki stok > 0
+         $query->where('stock', '>', 0)->orderBy('name', 'asc');
+    }])->get();
+    
+    // Produk Flash Sale
+    // Catatan: Query ini hanya untuk produk yang sedang Flash Sale
+    $flashSaleProducts = Product::where('is_flash_sale', true)
+                                ->where('flash_sale_end_at', '>', Carbon::now())
+                                ->where('stock', '>', 0)
+                                ->take(8)
+                                ->get();
 
-        // Produk Terbaru (Ambil 8 item terbaru)
-        $newProducts = Product::where('stock', '>', 0)
-                              ->latest('created_at')
-                              ->take(8)
-                              ->get();
+    // Produk Terbaru (Ambil 8 item terbaru)
+    $newProducts = Product::where('stock', '>', 0)
+                          ->latest('created_at')
+                          ->take(8)
+                          ->get();
 
-        // Produk Best Seller (Ambil 8 item terlaris)
-        $bestSellerProducts = Product::where('is_best_seller', true)
-                                     ->where('stock', '>', 0)
-                                     // Atau gunakan sales_count untuk menentukan terlaris
-                                     // ->orderBy('sales_count', 'desc') 
-                                     ->take(8)
-                                     ->get();
+    // Produk Best Seller (Ambil 8 item terlaris)
+    $bestSellerProducts = Product::where('is_best_seller', true)
+                                 ->where('stock', '>', 0)
+                                 // ->orderBy('sales_count', 'desc') 
+                                 ->take(8)
+                                 ->get();
+    
+    // Mencari SATU produk yang dijadikan patokan waktu Flash Sale
+    // Ambil yang pertama, yang memiliki waktu berakhir di masa depan
+    $flashSaleItem = Product::where('is_flash_sale', true)
+                            ->where('flash_sale_end_at', '>', Carbon::now())
+                            ->first();
 
-        // 3. Kirim SEMUA variabel ke view
-        return view('customer.menu', compact(
-            'categories', 
-            'table', 
-            'flashSaleProducts', 
-            'newProducts', 
-            'bestSellerProducts'
-        ));
+    // 2. Tentukan tanggal berakhirnya dengan pengecekan aman
+    $flashSaleEndDate = null;
+
+    // KOREKSI UTAMA: Gunakan operator nullsafe (?->) dan kolom yang benar (flash_sale_end_at)
+    // Jika $flashSaleItem ada, ambil flash_sale_end_at. Jika itu Carbon object, format.
+    if ($flashSaleItem) {
+        $flashSaleEndDate = $flashSaleItem->flash_sale_end_at?->format('Y-m-d H:i:s');
     }
     
+    // 3. Kirim SEMUA variabel ke view
+    return view('customer.menu', compact(
+        'categories', 
+        'table', 
+        'flashSaleProducts', 
+        'flashSaleEndDate',
+        'newProducts', 
+        'bestSellerProducts'
+    ));
+}   
+public function showCategoryDetail(Category $category)
+{
+    // Ambil semua produk yang terhubung dengan kategori ini dan memiliki stok > 0
+    $products = $category->products()
+                         ->where('stock', '>', 0)
+                         ->orderBy('name', 'asc')
+                         ->get();
+
+    // Ambil semua kategori lainnya (untuk navigasi kartu bulat)
+    $categories = Category::all();
+
+    return view('customer.category_detail', compact('category', 'products', 'categories'));
+}
+public function showProductDetail(Product $product)
+{
+    // Eager load images dan testimoni untuk produk ini
+    $product->load(['images', 'testimonies.user']); 
+    
+    // Anda bisa menambahkan logika produk terkait di sini jika diperlukan
+    // $relatedProducts = Product::where('category_id', $product->category_id)->where('id', '!=', $product->id)->take(4)->get();
+
+    return view('customer.product_detail', compact('product'));
+}
     // Menambahkan item ke keranjang (Session)
     public function addToCart(Request $request)
     {
@@ -118,13 +156,61 @@ public function showMenu(Table $table)
     }
     
     // Menampilkan halaman keranjang
-    public function showCart()
-    {
-        $cart = session()->get('cart', []);
-        $total = array_sum(array_map(fn($item) => $item['price'] * $item['quantity'], $cart));
+   public function showCart()
+{
+    $cart = session()->get('cart', []);
+    $total = array_sum(array_map(fn($item) => $item['price'] * $item['quantity'], $cart));
 
-        return view('customer.cart', compact('cart', 'total'));
+    // Tambahkan data meja yang tersedia jika user login (Asumsi: Staff/Admin)
+    // Walaupun customer biasa tidak butuh ini, compact tidak akan crash.
+    $availableTables = Table::where('status', 'available')->get();
+    
+    // Kirim $availableTables ke view
+    return view('customer.cart', compact('cart', 'total', 'availableTables')); 
+}
+public function removeCartItem(Request $request, $productId)
+    {
+        // 1. Ambil array keranjang belanja dari session
+        $cart = session()->get('cart', []); // Defaultkan ke array kosong jika belum ada
+
+        // 2. Cek apakah produk dengan ID yang diberikan ada di keranjang
+        if (isset($cart[$productId])) {
+            
+            // 3. Hapus item dari array
+            unset($cart[$productId]); 
+
+            // 4. Simpan kembali array keranjang yang telah diperbarui ke session
+            session()->put('cart', $cart);
+
+            // 5. Berikan respons sukses
+            return redirect()->back()->with('success', 'Item berhasil dihapus dari keranjang.');
+        }
+
+        // Jika item tidak ditemukan
+        return redirect()->back()->with('error', 'Item tidak ditemukan di keranjang.');
     }
+public function updateCartQtyAjax(Request $request, $productId)
+{
+    $request->validate(['quantity' => 'required|integer']);
+
+    $cart = session()->get('cart', []);
+    $quantity = $request->quantity;
+
+    if ($quantity > 0 && isset($cart[$productId])) {
+        $cart[$productId]['quantity'] = $quantity;
+        session()->put('cart', $cart);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Kuantitas diperbarui.',
+            'count' => count($cart),
+            'total' => array_sum(array_map(fn($item) => $item['price'] * $item['quantity'], $cart))
+        ]);
+    } 
+    
+    // Jika kuantitas 0, kita biarkan logic hapus yang menanganinya, atau berikan error.
+    return response()->json(['success' => false, 'message' => 'Gagal update kuantitas.'], 400);
+}
     public function updateCart(Request $request)
 {
     $cart = session()->get('cart', []);
