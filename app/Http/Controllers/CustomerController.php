@@ -247,7 +247,7 @@ public function updateCartQtyAjax(Request $request, $productId)
         $request->validate([
             'customer_name' => 'required|string|max:255',
             'customer_email' => 'required|email|max:255',
-            'customer_email' => 'required|number|max:255',
+            'customer_hp' => 'required|string|max:255',
         ]);
         // Panggil metode inti pemrosesan order
         return $this->processOrder($cart, [
