@@ -271,8 +271,8 @@ public function updateCartQtyAjax(Request $request, $productId)
             'user_id' => null,
             'delivery_address' => null,
             'customer_name' => $request->customer_name,
-            'customer_hp' => $request->customer_hp,
             'customer_email' => $request->customer_email,
+            'customer_hp' => $request->customer_hp,
         ]);
     }
 

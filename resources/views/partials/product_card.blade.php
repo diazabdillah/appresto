@@ -16,7 +16,7 @@
             @endif
 
             {{-- Form Tambah ke Keranjang --}}
-            <form action="{{ route('customer.cart.add') }}" method="POST" class="mt-auto pt-2">
+            <form action="{{ route('customer.cart.add', $product->id) }}" method="POST" class="mt-auto pt-2">
                 @csrf
                 <input type="hidden" name="product_id" value="{{ $product->id }}">
                 <div class="input-group input-group-sm">
