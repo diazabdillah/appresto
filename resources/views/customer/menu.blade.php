@@ -48,24 +48,68 @@
     {{-- --- SLIDER END --- --}}
 
     {{-- 🏷️ MENU BERDASARKAN KATEGORI (Tampilan Bulat) --}}
-    @if($categories->count())
-    <div class="category-section mb-5 shadow-sm p-3 rounded bg-white">
-        <h3 class="mb-3 text-center"><i class="bi bi-tags-fill me-2"></i> Jelajahi Kategori</h3>
-        <div class="d-flex flex-row flex-nowrap overflow-auto p-2" style="-webkit-overflow-scrolling: touch;">
-            @foreach($categories as $category)
-                <div class="text-center mx-2 flex-shrink-0" style="width: 100px;">
-                    <a href="{{ route('customer.category.show', $category) }}" class="text-decoration-none text-dark d-block">
-                        <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1" 
-                             style="width: 70px; height: 70px; background-color: #f8f9fa; border: 2px solid #ced4da;">
-                            <i class="bi bi-{{ strtolower(substr($category->name, 0, 1)) }}-circle-fill text-secondary" style="font-size: 2rem;"></i>
-                        </div>
-                        <small class="fw-bold">{{ $category->name }}</small>
-                    </a>
-                </div>
-            @endforeach
-        </div>
+@if($categories->count())
+<div class="category-section mb-5 shadow-sm p-3 rounded bg-white">
+    <h3 class="mb-3 text-center"><i class="bi bi-tags-fill me-2"></i> Jelajahi Kategori</h3>
+    <div class="d-flex flex-row flex-nowrap overflow-auto p-2" style="-webkit-overflow-scrolling: touch;">
+        @foreach($categories as $category)
+            @php
+                // Mapping kata kunci ke Bootstrap Icons (case-insensitive)
+                $iconMap = [
+                    'makanan' => 'cup-hot-fill',    // Diubah ke ikon makanan/minuman panas
+                    'panas'   => 'cup-hot-fill',    // Tambahkan alias 'panas'
+
+                    'minuman' => 'cup-straw', 
+                    'kopi' => 'cup-hot',
+                    'teh' => 'cup-hot',
+                    
+                    'jus' => 'droplet-half',
+                    'sayur' => 'apple',
+                    'buah' => 'tropical-fish',
+                    'seafood' => 'tropical-fish',
+                    'ikan' => 'tropical-fish',
+                    'ayam' => 'bucket-fill',
+                    'daging' => 'egg-fried', 
+                    'nasi' => 'bag-fill',
+                    'mie' => 'egg-fried',
+                    'pedas' => 'fire',
+                    'promo' => 'lightning-fill',
+                    'flash sale' => 'lightning-fill',
+                    'best seller' => 'star-fill',
+                    'snack' => 'bagel-fill',
+                    'dessert' => 'cake-fill',
+                    
+                    'default' => 'grid-fill' 
+                ];
+                
+                $categoryName = strtolower($category->name);
+                $iconMatch = $iconMap['default']; 
+                
+                // Cari kata kunci yang cocok di dalam nama kategori
+                foreach ($iconMap as $keyword => $icon) {
+                    if (str_contains($categoryName, $keyword)) {
+                        $iconMatch = $icon;
+                        break; 
+                    }
+                }
+
+                $iconClass = 'bi-' . $iconMatch;
+            @endphp
+            
+            <div class="text-center mx-2 flex-shrink-0" style="width: 100px;">
+                <a href="{{ route('customer.category.show', $category) }}" class="text-decoration-none text-dark d-block">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1" 
+                         style="width: 70px; height: 70px; background-color: #f8f9fa; border: 2px solid #ced4da;">
+                        
+                        <i class="bi {{ $iconClass }} text-secondary" style="font-size: 2rem;"></i>
+                    </div>
+                    <small class="fw-bold">{{ $category->name }}</small>
+                </a>
+            </div>
+        @endforeach
     </div>
-    @endif
+</div>
+@endif
     
     {{-- ⚡ FLASH SALE SECTION --}}
     @if($flashSaleProducts->count())

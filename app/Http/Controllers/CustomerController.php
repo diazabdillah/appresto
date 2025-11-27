@@ -122,38 +122,53 @@ public function showCategoryDetail(Category $category)
 }
 public function showProductDetail(Product $product)
 {
-    // Eager load images dan testimoni untuk produk ini
-    $product->load(['images', 'testimonies.user']); 
+    // Eager load relasi yang dibutuhkan oleh view product_detail
+    $product->load(['images', 'testimonies.user', 'category']); 
     
-    // Anda bisa menambahkan logika produk terkait di sini jika diperlukan
-    // $relatedProducts = Product::where('category_id', $product->category_id)->where('id', '!=', $product->id)->take(4)->get();
+    // --- QUERY BARU: Produk Terkait ---
+    $relatedProducts = Product::where('category_id', $product->category_id)
+        ->where('id', '!=', $product->id) // Exclude produk saat ini
+        ->where('stock', '>', 0)
+        ->with('images') // Eager load gambar
+        ->withAvg('testimonies', 'rating') // Hitung rating
+        ->withCount('testimonies') // Hitung jumlah testimoni
+        ->inRandomOrder() // Ambil secara acak
+        ->take(4) // Ambil 4 produk terkait
+        ->get();
 
-    return view('customer.product_detail', compact('product'));
+    return view('customer.product_detail', compact('product', 'relatedProducts'));
 }
     // Menambahkan item ke keranjang (Session)
-    public function addToCart(Request $request)
-    {
-        $request->validate(['product_id' => 'required|exists:products,id', 'quantity' => 'required|integer|min:1']);
-        
-        $product = Product::find($request->product_id);
-        $cart = session()->get('cart', []);
-        $price = $product->discount_price ?? $product->price;
+   public function addToCart(Request $request, Product $product)
+{
+    // Hapus product_id dari validasi karena sudah ada di URL
+    // Validasi hanya untuk quantity
+    $request->validate([
+        'quantity' => 'required|integer|min:1', 
+    ]);
+    
+    // Objek $product kini sudah tersedia langsung dari Route Model Binding
+    $cart = session()->get('cart', []);
+    
+    // Periksa apakah harga diskon ada, jika tidak gunakan harga normal
+    $price = $product->discount_price ?? $product->price;
 
-        // Logika penambahan/update item di $cart
-        if(isset($cart[$product->id])) {
-            $cart[$product->id]['quantity'] += $request->quantity;
-        } else {
-            $cart[$product->id] = [
-                "product_id" => $product->id,
-                "name" => $product->name,
-                "quantity" => $request->quantity,
-                "price" => $price,
-            ];
-        }
-
-        session()->put('cart', $cart);
-        return redirect()->back()->with('success', $product->name . ' ditambahkan ke keranjang.');
+    // Logika penambahan/update item di $cart
+    if(isset($cart[$product->id])) {
+        $cart[$product->id]['quantity'] += $request->quantity;
+    } else {
+        $cart[$product->id] = [
+            "product_id" => $product->id,
+            "name" => $product->name,
+            "quantity" => $request->quantity,
+            "price" => $price,
+            // Tambahkan data lain yang diperlukan
+        ];
     }
+
+    session()->put('cart', $cart);
+    return redirect()->back()->with('success', $product->name . ' ditambahkan ke keranjang.');
+}
     
     // Menampilkan halaman keranjang
    public function showCart()

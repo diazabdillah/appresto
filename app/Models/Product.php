@@ -44,4 +44,8 @@ class Product extends Model
     {
         return $this->hasMany(Testimony::class);
     }
+    public function images()
+{
+    return $this->hasMany(ProductImage::class)->orderBy('is_main', 'desc')->orderBy('id', 'asc');
+}
 }

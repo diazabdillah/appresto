@@ -18,25 +18,65 @@
     <div class="category-section mb-5 shadow-sm p-3 rounded bg-white">
         <h3 class="mb-3 text-center"><i class="bi bi-tags-fill me-2"></i> Kategori Lain</h3>
         <div class="d-flex flex-row flex-nowrap overflow-auto p-2" style="-webkit-overflow-scrolling: touch;">
-            @foreach($categories as $cat)
-                <div class="text-center mx-2 flex-shrink-0" style="width: 100px;">
-                    {{-- LINK KE HALAMAN DETAIL KATEGORI LAIN --}}
-                    <a href="{{ route('customer.category.show', $cat) }}" class="text-decoration-none text-dark d-block">
-                        <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1" 
-                             style="width: 70px; height: 70px; background-color: #f8f9fa; border: 2px solid {{ $cat->id == $category->id ? '#0d6efd' : '#ced4da' }};">
-                            
-                            {{-- Placeholder untuk Icon/Gambar Kategori --}}
-                            <i class="bi bi-{{ strtolower(substr($cat->name, 0, 1)) }}-circle-fill {{ $cat->id == $category->id ? 'text-primary' : 'text-secondary' }}" style="font-size: 2rem;"></i>
-                        </div>
-                        <small class="fw-bold">{{ $cat->name }}</small>
-                    </a>
-                </div>
-            @endforeach
+              @foreach($categories as $category)
+            @php
+                // Mapping kata kunci ke Bootstrap Icons (case-insensitive)
+                $iconMap = [
+                    'makanan' => 'cup-hot-fill',    // Diubah ke ikon makanan/minuman panas
+                    'panas'   => 'cup-hot-fill',    // Tambahkan alias 'panas'
+
+                    'minuman' => 'cup-straw', 
+                    'kopi' => 'cup-hot',
+                    'teh' => 'cup-hot',
+                    
+                    'jus' => 'droplet-half',
+                    'sayur' => 'apple',
+                    'buah' => 'tropical-fish',
+                    'seafood' => 'tropical-fish',
+                    'ikan' => 'tropical-fish',
+                    'ayam' => 'bucket-fill',
+                    'daging' => 'egg-fried', 
+                    'nasi' => 'bag-fill',
+                    'mie' => 'egg-fried',
+                    'pedas' => 'fire',
+                    'promo' => 'lightning-fill',
+                    'flash sale' => 'lightning-fill',
+                    'best seller' => 'star-fill',
+                    'snack' => 'bagel-fill',
+                    'dessert' => 'cake-fill',
+                    
+                    'default' => 'grid-fill' 
+                ];
+                
+                $categoryName = strtolower($category->name);
+                $iconMatch = $iconMap['default']; 
+                
+                // Cari kata kunci yang cocok di dalam nama kategori
+                foreach ($iconMap as $keyword => $icon) {
+                    if (str_contains($categoryName, $keyword)) {
+                        $iconMatch = $icon;
+                        break; 
+                    }
+                }
+
+                $iconClass = 'bi-' . $iconMatch;
+            @endphp
+            
+            <div class="text-center mx-2 flex-shrink-0" style="width: 100px;">
+                <a href="{{ route('customer.category.show', $category) }}" class="text-decoration-none text-dark d-block">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1" 
+                         style="width: 70px; height: 70px; background-color: #f8f9fa; border: 2px solid #ced4da;">
+                        
+                        <i class="bi {{ $iconClass }} text-secondary" style="font-size: 2rem;"></i>
+                    </div>
+                    <small class="fw-bold">{{ $category->name }}</small>
+                </a>
+            </div>
+        @endforeach
         </div>
     </div>
     @endif
     
-    <hr class="my-5">
 
     {{-- 🍔 DAFTAR PRODUK DALAM KATEGORI INI --}}
     @if($products->count())
